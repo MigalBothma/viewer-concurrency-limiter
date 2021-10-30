@@ -1,11 +1,38 @@
+# Welcome to Serverless!
+
 plugins:
   - serverless-express 
   - serverless-offline
 
+service: viewer-concurrency-limiter
+# app and org for use with dashboard.serverless.com
+#app: your-app-name
+#org: your-org-name
+
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
+frameworkVersion: '2'
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: 20201221
+
+# you can overwrite defaults here
+  stage: dev
+  region: af-south-1
+
+# you can define service wide environment variables here
+#  environment:
+#    variable1: value1
+
 functions:
-  app: 
-    handler: handler.handler
-    events: 
-      - http:
-          method: GET
-          path: /users
+  hello:
+    handler: handler.hello
+    events:
+      - httpApi:
+          path: /canStream/{UID}
+          method: get
+      - httpApi:
+          path: /endStream/{UID}
+          method: get

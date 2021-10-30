@@ -25,10 +25,10 @@
   },
   "homepage": "https://github.com/MigalBothma/viewer-concurrency-limiter#readme",
   "dependencies": {
-    "serverless-express": "^2.0.12"
   },
   "devDependencies": {
     "@types/node": "^16.11.6",
+    "serverless": "^2.64.1",
     "serverless-offline": "^8.2.0"
   }
 }
