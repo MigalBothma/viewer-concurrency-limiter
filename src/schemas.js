@@ -1,7 +1,7 @@
 const Joi = require('joi');
 
 const requestSchema = Joi.object({
-    UID: Joi.string()
+    uid: Joi.string()
         .trim()
         .min(5)
         .required(),
