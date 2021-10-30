@@ -5,11 +5,28 @@ The API consumer will pass in a Unique ID ( this can be userName, accountName, a
 
 ## Service lifecycle
 Before the external provider serves the stream this service is called to verify if the user has more than 3 streams open.
-If the current stream count is < 3, the consumer will be allowed to proceed with the next stream.
-<insert success snip>
 
-If the current stream count is >=3, don't allow the user to proceed.
-<insert fail snip>
+If the current stream count is < 3, the consumer will be allowed to proceed with the next stream : `canStream - true`.
+```
+{
+    "result": "success",
+    "uid": "96712348-12458908",
+    "canStream": true,
+    "streamCount": 1
+}
+```
+
+If the current stream count is >=3, don't allow the user to proceed : `canStream - false`.
+```
+{
+    "result": "success",
+    "uid": "96712348-12458908",
+    "canStream": false,
+    "streamCount": 3
+}
+```
+
+** The browser should house an onClose() lifecycle hook to call the endStream. Websockets can solve the issue of auto-disconnect but will hold function open until stream ends.
 
 ## Requirements
 NodeJS
@@ -58,8 +75,14 @@ shouldDelayTransientStatuses:   false
 CorsParams:     *
 ```
 
-3. Create the DynamoDB table. `aws dynamodb create-table --table-name uid_concurrency_count --attribute-definitions AttributeName=uid,AttributeType=S --key-schema AttributeName=uid,KeyType=HASH --billing-mode PAY_PER_REQUEST --endpoint-url http://localhost:8000`
+3. Create the DynamoDB table. 
+Lambda will attempt to create DynamoDB if `ResourceNotFoundException` is raised.
+Run table creation script. `node .\src\createTable.js`
 
+OR
+
+Via CLI
+`aws dynamodb create-table --table-name uid_concurrency_count --attribute-definitions AttributeName=uid,AttributeType=S --key-schema AttributeName=uid,KeyType=HASH --billing-mode PAY_PER_REQUEST --endpoint-url http://localhost:8000` 
 
 4. Retrieve the list of DynamoDB tables. `aws dynamodb list-tables --endpoint-url http://localhost:8000`
 ```
@@ -69,3 +92,49 @@ CorsParams:     *
     ]
 }
 ```
+
+5. Start the function locally with Serverless. `serverless offline`
+
+6. Test the `canStream` function in your browser. `http://localhost:3000/dev/canStream/96712348-12458908`
+```
+{
+    "result": "success",
+    "uid": "96712348-12458908",
+    "canStream": true,
+    "streamCount": 1
+}
+```
+
+7. Test the `endStream` function in your browser. `http://localhost:3000/dev/endStream/96712348-12458908`
+```
+{
+    "result": "success",
+    "uid": "96712348-12458908",
+    "removedStream": true,
+    "streamCount": 0
+}
+```
+
+8. Retrieve Scan of Items. `aws dynamodb scan --table-name uid_concurrency_count --endpoint-url http://localhost:8000`
+```
+{
+    "Items": [
+        {
+            "count": {
+                "N": "0"
+            },
+            "uid": {
+                "S": "96712348-12458908"
+            }
+        }
+    ],
+    "Count": 1,
+    "ScannedCount": 1,
+    "ConsumedCapacity": null
+}
+```
+
+## What's left
+1. X-Ray Monitoring ( console.error for cloudwatch logs ) : 15m-30m (https://github.com/aws-samples/aws-xray-sdk-node-sample/blob/master/index.js)
+2. Lambda Environmental Variables via Serverless : 1h
+3. Cloud Deployment : 30m-1h ( prepping + testing )

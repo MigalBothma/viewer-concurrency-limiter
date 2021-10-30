@@ -26,12 +26,14 @@
   "homepage": "https://github.com/MigalBothma/viewer-concurrency-limiter#readme",
   "dependencies": {
     "joi": "^17.4.2",
+    "lodash": "^4.17.21",
     "serverless-http": "^2.7.0"
   },
   "devDependencies": {
     "@types/node": "^16.11.6",
     "aws-sdk": "^2.1018.0",
     "serverless": "^2.64.1",
+    "serverless-express": "^2.0.12",
     "serverless-offline": "^8.2.0"
   }
 }

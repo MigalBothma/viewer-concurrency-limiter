@@ -1,11 +1,17 @@
+// Express
 const express = require('express')
 let app = express();
 app.use(express.json());
 
+// Lodash
+var _ = require('lodash');
+
 // Config
 const cfg = require('./config')
+const createTable = require('./createTable')
 
 // Schemas
+const Joi = require('joi');
 const schemas = require('./schemas')
 
 // AWS DynamoDB imports
@@ -14,128 +20,89 @@ const AWS = require("aws-sdk");
 // Configure AWS DynamoDB
 AWS.config.update({
   region: cfg.AWS_REGION,
-  endpoint: cfg.AWSDYNAMODB_URI,
+  endpoint: cfg.AWS_DYNAMODB_URI,
 });
-const dynamodb = new AWS.DynamoDB();
+let docClient = new AWS.DynamoDB.DocumentClient();
 
-// Object Validation Framework
-const Joi = require('joi');
+//-------------------------------------------------
+//--------------- Helper Functions ----------------
+//-------------------------------------------------
 
-// GET uid Data
-function getUidData(uid){
-  // Create a default object
-  let item = {
-    uid: null,
-    count: 0
-  }
-
+//-------------------------------------------------
+// GET UID Data
+//-------------------------------------------------
+async function getUidData(uid){
   let params = {
     TableName: cfg.DYNAMODB_TABLE_NAME,
     Key: {
-      'uid': {S: String(uid)}
-    },
-    ProjectionExpression: 'ATTRIBUTE_NAME'
+      "uid": String(uid)
+    }
   };
 
   // Call DynamoDB to read the item from the table
-  dynamodb.getItem(params, function(err, data) {
-    if (err) {
-      if (err.code != "ResourceNotFoundException"){
-        res.status(400).send({
-          result: "error",
-          message: String(error.code)
-        })
-      }
-      // console.log("Error", err);
-    } else {
-      if (data.Item.uid) { item.uid = data.Item.uid }
-      if (data.Item.count) { item.count = data.Item.count }
-    }
-  });
+  let result = await docClient.get(params).promise()
 
-  return item
+  return result
 } 
 
-// CREATE uid Data
-function createUidData(uid){
-  let item = {
-    uid: null,
-    count: 0
+//-------------------------------------------------
+// CREATE UID Data
+//-------------------------------------------------
+async function createUidData(uid, streamCount){
+  console.log(uid, streamCount)
+
+  let item =  {
+    uid: uid ? uid : null,
+    streamCount: streamCount
   }
 
   let params = {
     TableName: cfg.DYNAMODB_TABLE_NAME,
     Item: {
-      'uid': {S: String(uid)}
+      uid: String(uid),
+      streamCount: Number(streamCount)
     }
   };
 
   // Call DynamoDB to put the item in the table
-  dynamodb.putItem(params, function(err, data) {
-    if (err) {
-      if (err){
-        console.error(err); // Cloudwatch logs for time being
-        res.status(400).send({
-          result: "error",
-          message: String(error.code)
-        })
-      }
-    } else {
-      item = data.Item;
-      console.log("Success", data.Item);
-    }
-  });
-
-  return item
+  let result = await docClient.put(params).promise()
+  return result
 } 
 
-// Call DynamoDB to put the item in the table - putItem with same UID will update the key
-function updateUidData(uid){
-  // Create a default object
-  let item = {
-    uid: null,
-    count: 0
-  }
-
-  // Construct Item to Update
+//-------------------------------------------------
+// UPDATE UID Data
+//-------------------------------------------------
+async function updateUidData(uid, streamCount){
   let params = {
     TableName: cfg.DYNAMODB_TABLE_NAME,
-    Item: {
-      'uid': {S: String(uid)}
+    Key: {
+      "uid": String(uid)
     },
-    ProjectionExpression: 'ATTRIBUTE_NAME'
+    UpdateExpression: "set streamCount = :v",
+    ExpressionAttributeValues:{
+        ":v":Number(streamCount)
+    },
+    ReturnValues:"UPDATED_NEW"
   };
 
   // Call DynamoDB to read the item from the table
-  dynamodb.putItem(params, function(err, data) {
-    if (err) {
-      if (err.code != "ResourceNotFoundException"){
-        res.status(400).send({
-          result: "error",
-          message: String(error.code)
-        })
-      }
-      // console.log("Error", err);
-    } else {
-      if (data.Item.uid) { item.uid = data.Item.uid }
-      if (data.Item.count) { item.count = data.Item.count }
-      console.log("Success", data.Item);
-    }
-  });
+  let result = await docClient.update(params).promise()
+
+  return result
 } 
 
 //-------------------------------------------------
 //------------------- canStream -------------------
 //-------------------------------------------------
 app.get( '/canStream/:uid', function (req, res) {
-  const params = req.params
-  const { error, value } = schemas.requestSchema.validate(params);
-
+  const params = req.params;
+  const { schema_err, value } = schemas.requestSchema.validate(params);
+  
   // Guard Clause with obj validation
-  if(error){ 
+  if(schema_err){
     res.status(400).send({
       result: "error",
-      message: String(error.details.map(err => {return err.message} )) 
+      message: String(schema_err.details.map(_err => {return _err.message} )) 
   })}
 
   // Define output
@@ -146,22 +113,54 @@ app.get( '/canStream/:uid', function (req, res) {
     streamCount: 0
   }
 
+  output.uid = String(params.uid);
+
   //getUIDRecord
-  const uidData = getUidData(params.uid)
+  getUidData(output.uid)
+  .then(data => {
+    if(data){
+      console.log(data)
 
-  // If uid null, create
-  if (!uidData.uid){
-    output.uid = createUidData();
-    output.streamCount += output.streamCount
-    output.canStream = true;
-    return output
-  }
+      // If we don't have an item
+      if(_.isEmpty(data.Item)){
+        output.canStream = true;
+        output.streamCount = 1;
+        // Create new uid and add 1 stream count
+        createUidData(output.uid, output.streamCount);
+        return res.status(200).send(output);
+      } 
 
-  console.log(output)
+      // If we have an Item and count < 3
+      if(data.Item.streamCount < cfg.CONCURRENT_SESSIONS){
+        output.canStream = true;
+        output.streamCount = data.Item.streamCount + 1
+        updateUidData(output.uid, output.streamCount)
+        return res.status(200).send(output);
+      }
 
-  // Return response
-  res.status(200).send({
-    
+      // If we have an Item and count >= 3
+      if(data.Item.streamCount >= cfg.CONCURRENT_SESSIONS) {
+        output.canStream = false;
+        output.streamCount = data.Item.streamCount
+        updateUidData(output.uid, output.streamCount)
+        return res.status(200).send(output);
+      }
+    }    
+  })
+  .catch( err => {
+    console.error(err)
+    if (err){
+      // IF db doesn't exist
+      if (err.code == 'ResourceNotFoundException'){
+        console.log('Database Instance not Found. Attempting to create.')
+        createTable.createDynamoDBTable()
+      } 
+
+      res.status(500).send({
+        result: "error",
+        message: err
+      })
+    }
   })
 });
 
@@ -169,7 +168,57 @@ app.get( '/canStream/:uid', function (req, res) {
 //------------------- endStream -------------------
 //-------------------------------------------------
 app.get( '/endStream/:uid', function (req, res) {
-  res.send('hello world')
+  const params = req.params;
+  const { schema_err, value } = schemas.requestSchema.validate(params);
+
+  // Guard Clause with obj validation
+  if(schema_err){ 
+    res.status(400).send({
+      result: "error",
+      message: String(schema_err.details.map(_err => {return _err.message} )) 
+  })}
+
+  // Define output
+  let output = {
+    result : "success",
+    uid: "",
+    removedStream : false,
+    streamCount: 0
+  }
+
+  output.uid = String(params.uid);
+
+  //getUIDRecord
+  getUidData(output.uid)
+  .then(data => {
+    if(data){
+      console.log(data)
+
+      // If we don't have an item
+      if(_.isEmpty(data.Item)){
+        output.removedStream = false;
+        output.streamCount = 0;
+        return res.status(200).send(output);
+      }
+
+      // If we have an Item
+      if(data.Item.streamCount){
+        output.removedStream = true;
+        if(data.Item.streamCount){output.streamCount = data.Item.streamCount - 1;}
+        updateUidData(output.uid, output.streamCount)
+        return res.status(200).send(output);
+      }
+    }    
+  })
+  .catch( err => {
+    console.error(err)
+    if (err){
+      res.status(500).send({
+        result: "error",
+        message: err
+      })
+    }
+  })
 });
 
 module.exports = app

@@ -1,9 +1,8 @@
 # Welcome to Serverless!
 
 plugins:
-  - serverless-express 
+  - serverless-express
   - serverless-offline
-
 service: viewer-concurrency-limiter
 # app and org for use with dashboard.serverless.com
 #app: your-app-name
@@ -23,8 +22,8 @@ provider:
   region: af-south-1
 
 # you can define service wide environment variables here
-#  environment:
-#    variable1: value1
+  environment:
+    env: dev
 
 functions:
   app:
