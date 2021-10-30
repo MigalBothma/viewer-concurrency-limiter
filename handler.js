@@ -1,34 +1,6 @@
-'use strict';
+// Express Imports
+const serverless = require('serverless-http');
+const express = require('express')
+const app = require('./src/index');
 
-module.exports.canStream = async (event) => {
-
-  
-  return {
-    statusCode: 200,
-    body: JSON.stringify(
-      {
-        message: 'Go Serverless v1.0! Your function executed successfully!',
-        input: event,
-      },
-      null,
-      2
-    ),
-  };
-};
-
-module.exports.endStream = async (event) => {
-
-
-
-  return {
-    statusCode: 200,
-    body: JSON.stringify(
-      {
-        message: 'Go Serverless v1.0! Your function executed successfully!',
-        input: event,
-      },
-      null,
-      2
-    ),
-  };
-};
+module.exports.handler = serverless(app);

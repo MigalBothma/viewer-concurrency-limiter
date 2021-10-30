@@ -27,12 +27,8 @@ provider:
 #    variable1: value1
 
 functions:
-  hello:
-    handler: handler.hello
+  app:
+    handler: handler.handler
     events:
-      - httpApi:
-          path: /canStream/{UID}
-          method: get
-      - httpApi:
-          path: /endStream/{UID}
-          method: get
+      - http: ANY /
+      - http: 'ANY {proxy+}'
