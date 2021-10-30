@@ -58,7 +58,7 @@ shouldDelayTransientStatuses:   false
 CorsParams:     *
 ```
 
-3. Create the DynamoDB table. `aws dynamodb create-table --table-name uid_concurrency_count --attribute-definitions AttributeName=orderId,AttributeType=S --key-schema AttributeName=orderId,KeyType=HASH --billing-mode PAY_PER_REQUEST --endpoint-url http://localhost:8000`
+3. Create the DynamoDB table. `aws dynamodb create-table --table-name uid_concurrency_count --attribute-definitions AttributeName=uid,AttributeType=S --key-schema AttributeName=uid,KeyType=HASH --billing-mode PAY_PER_REQUEST --endpoint-url http://localhost:8000`
 
 
 4. Retrieve the list of DynamoDB tables. `aws dynamodb list-tables --endpoint-url http://localhost:8000`
