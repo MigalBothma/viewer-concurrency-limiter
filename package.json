@@ -1,0 +1,34 @@
+{
+  "name": "viewer-concurrency-limiter",
+  "version": "1.0.0",
+  "description": "This function is written to limit the amount of streams a given user currently has open. The API consumer will pass in a Unique ID ( this can be userName, accountName, accountID ) and it will track and increment/decrement the UID if a stream opens/closes.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js",
+    "start": "node main.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MigalBothma/viewer-concurrency-limiter.git"
+  },
+  "keywords": [
+    "dynamodb",
+    "express",
+    "lambda",
+    "nodeJS",
+    "serverless"
+  ],
+  "author": "Migal Bothma",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/MigalBothma/viewer-concurrency-limiter/issues"
+  },
+  "homepage": "https://github.com/MigalBothma/viewer-concurrency-limiter#readme",
+  "dependencies": {
+    "serverless-express": "^2.0.12"
+  },
+  "devDependencies": {
+    "@types/node": "^16.11.6",
+    "serverless-offline": "^8.2.0"
+  }
+}

@@ -1,0 +1,11 @@
+plugins:
+  - serverless-express 
+  - serverless-offline
+
+functions:
+  app: 
+    handler: handler.handler
+    events: 
+      - http:
+          method: GET
+          path: /users
