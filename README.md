@@ -3,6 +3,13 @@
 This function is written to limit the amount of streams a given user currently has open.
 The API consumer will pass in a Unique ID ( this can be userName, accountName, accountID ) and it will track and increment/decrement the UID if a stream opens/closes.
 
+## Other possible solution
+( Possible Rework with Lambda Websockets can reduce Service call lifecycle to a single call. )
+$connect - The associated route is used when a client first connects to your WebSocket API. Check canStream and return response obj.
+$disconnect - When socket closes, closes current stream and invalidates the connectionId. 
+
+Adding Websockets, the additional connectionId can be added to track the individual streams.
+
 ## Service lifecycle
 Before the external provider serves the stream this service is called to verify if the user has more than 3 streams open.
 
@@ -50,7 +57,7 @@ AWS Lambda ( Serverless for describing the config + deployment )
 AWS XRay for NodeJS + Express
 
 ### Local development
-1. Pull the DynamoDB docker img. `docker run -p 8000:8000 amazon/dynamodb-local`
+1. Pull the DynamoDB docker img. `docker pull amazon/dynamodb-local`
 ```
 $docker pull amazon/dynamodb-local
 Using default tag: latest
